@@ -60,237 +60,211 @@ The default backbone is `resnet50`. You can change this using the `--backbone=xx
 
 Trained models can't be used directly for inference. To convert a trained model to an inference model, check [here](https://github.com/fizyr/keras-retinanet#converting-a-training-model-to-inference-model).
 
-### Usage
-For training on [Pascal VOC](http://host.robots.ox.ac.uk/pascal/VOC/), run:
-```shell
-# Running directly from the repository:
-keras_retinanet/bin/train.py pascal /path/to/VOCdevkit/VOC2007
 
-# Using the installed script:
-retinanet-train pascal /path/to/VOCdevkit/VOC2007
-```
-
-For training on [MS COCO](http://cocodataset.org/#home), run:
-```shell
-# Running directly from the repository:
-keras_retinanet/bin/train.py coco /path/to/MS/COCO
-
-# Using the installed script:
-retinanet-train coco /path/to/MS/COCO
-```
-
-For training on Open Images Dataset [OID](https://storage.googleapis.com/openimages/web/index.html)
-or taking place to the [OID challenges](https://storage.googleapis.com/openimages/web/challenge.html), run:
-```shell
-# Running directly from the repository:
-keras_retinanet/bin/train.py oid /path/to/OID
-
-# Using the installed script:
-retinanet-train oid /path/to/OID
-
-# You can also specify a list of labels if you want to train on a subset
-# by adding the argument 'labels_filter':
-keras_retinanet/bin/train.py oid /path/to/OID --labels-filter=Helmet,Tree
-
-# You can also specify a parent label if you want to train on a branch
-# from the semantic hierarchical tree (i.e a parent and all children)
-(https://storage.googleapis.com/openimages/challenge_2018/bbox_labels_500_hierarchy_visualizer/circle.html)
-# by adding the argument 'parent-label':
-keras_retinanet/bin/train.py oid /path/to/OID --parent-label=Boat
-```
+Intelligent Automation for Structured Data Extraction from PDF documents.
 
 
-For training on [KITTI](http://www.cvlibs.net/datasets/kitti/eval_object.php), run:
-```shell
-# Running directly from the repository:
-keras_retinanet/bin/train.py kitti /path/to/KITTI
+Abstract
+In most industries and organizations, a large part of organizational knowledge resides in documents, but these documents are in unstructured form. Extracting data from such documents has been difficult. One of those industries is the life sciences, and one of the major processes in life sciences is to bring a drug to market with safety and efficacy. 
+The unique nature of this domain is that on the one hand, we want to ensure safety because it can adversely affect human lives, and on the other, extract maximum value out of the drugs, experiments, and clinical trials.
+Traditional systems to support the clinical trials collect data in a document-centric way. Much of this information ends up as PDF documents that are scanned and used in the business process.
+The information from these PDF documents is then manually entered into systems for analytics and further processing, which is an expensive exercise.  AI, with its advances in robust optical character recognition and natural language processing, can make this conversion much more efficient and accurate.  However, extracting data from clinical forms that includes labels, checkboxes, tables, and lines are more challenging because we need to extract the labels and the corresponding values.
+At DataFoundry, we have created an intelligent data extraction system using AI technologies to automate the data extraction to any one of many structured formats.  The system does minimal manual annotations to capture the semantics of specific sections for any particular document template.  Once that has been done then millions of documents can be fed through the system to extract information automatically.
+In this paper, we will describe the business drivers behind such a system, the architecture of the system, show how the system performs compared to human levels, and also showcase examples of documents processed. We will discuss the difficulties around exacting information from checkboxes and share details about the neural network architecture we used to achieve high accuracy.
 
-# Using the installed script:
-retinanet-train kitti /path/to/KITTI
+Background
+One of the challenges in the field of Document Analysis is, document structure detection. Here, techniques from computer vision, a sub-discipline of artificial intelligence, are used for (1) information detection and (2) extraction. In their article “Histograms of oriented gradients for human detection” [1]  Navneet Dalal and Bill Triggs describe the histogram of oriented method to detect the objects from images. While this approach addresses many practical object detection and extraction problems, more advanced techniques use deep neural networks, yet another sub-discipline of AI, to address more complex problems. Such classical deep convolutional neural networks extract feature maps to extract more complex objects as shown in the work by Pierre Sermanet, David Eigen, Xiang Zhang, Michael Mathieu, Rob Fergus and Yann LeCun [2].  Specifically for document analysis, Neural Networks such as RCNN [3], fast RCNN [4], Faster RCNN [5], Yolo [6], RetinaNet [7,8] and then CornerNet [9] has shown good results to detect and extract complex document content such as graphs, figures, tables, checkboxes etc. 
+Checkbox detection is a unique problem in document analysis, because in addition detecting the checked box, we also need to detect the text which corresponds to the checked box. In his Master’s thesis “Optical character recognition for checkbox detection” [10] the author uses a three-step procedure for checkbox detection: 
+1. image preprocessing, 
+2. box detection through optical character recognition (OCR), and,
+3. checkmark detection through optical mark recognition. 
 
-If you want to prepare the dataset you can use the following script:
-https://github.com/NVIDIA/DIGITS/blob/master/examples/object-detection/prepare_kitti_data.py
-```
+IBM Knowledge Center [11] also proposes OCR usage for box detection, but they use a pixel threshold evaluation method, wherein the ratio of black to white pixels of the box area determines whether the box is checked. Another approach was offered by the authors of “Automatic Recognition Method for Checkbox in Data Form Image” [12]. They detect skews in image and then use the handwritten symbol recognition to solve the problem. However, this works only for handwritten boxes checked. 
+However, none of the approaches solve the problem of the text detection in the checked box. In the clinical trial life sciences space specifically, our analysis of different documents shows, that text can be both on the left and on the right of the checkbox. The RCNN (recurrent convolution neural network) family can be implemented for this task, but since they are based on ruled base Selective Search or Edge Boxes detection algorithms, they are extremely time and resources consuming. After analyzis and experimentation to find a more efficient approach, we implemented a variation of the RetinaNet NN model which achieved high performance mean Average Precision (mAP). 
 
+Problem Statement
+The intent of the document analysis project was to create a web application, which will disaggregate multiple PDF format documents of a same type and reaggregate the informational content to make it identifiable, retrievable and easily readable. Generally, data in the pdf documents is semi-structured. As opposed to well-structured data, which conforms to a schema or data model and can be queried using structured query language to answer questions, the content does not adhere to any rigorous format.  
 
-For training on a [custom dataset], a CSV file can be used as a way to pass the data.
-See below for more details on the format of these CSV files.
-To train using your CSV, run:
-```shell
-# Running directly from the repository:
-keras_retinanet/bin/train.py csv /path/to/csv/file/containing/annotations /path/to/csv/file/containing/classes
+Solution 
+To extract structured data as described in problem statement, we used the following steps:
+Step 1:
+Annotate a single document of each type
+Step 2:
+Extract data from multiple documents in accordance with initial annotation	Step 3:
+Identify only information from checked boxes for extraction	Step 4:
+Create structured data in a csv format 
 
-# Using the installed script:
-retinanet-train csv /path/to/csv/file/containing/annotations /path/to/csv/file/containing/classes
-```
-
-In general, the steps to train on your own datasets are:
-1) Create a model by calling for instance `keras_retinanet.models.backbone('resnet50').retinanet(num_classes=80)` and compile it.
-   Empirically, the following compile arguments have been found to work well:
-```python
-model.compile(
-    loss={
-        'regression'    : keras_retinanet.losses.smooth_l1(),
-        'classification': keras_retinanet.losses.focal()
-    },
-    optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
-)
-```
-2) Create generators for training and testing data (an example is show in [`keras_retinanet.preprocessing.pascal_voc.PascalVocGenerator`](https://github.com/fizyr/keras-retinanet/blob/master/keras_retinanet/preprocessing/pascal_voc.py)).
-3) Use `model.fit_generator` to start training.
-
-## Pretrained models
-
-All models can be downloaded from the [releases page](https://github.com/fizyr/keras-retinanet/releases).
-
-### MS COCO
-
-Results using the `cocoapi` are shown below (note: according to the paper, this configuration should achieve a mAP of 0.357).
-
-```
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.350
- Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=100 ] = 0.537
- Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=100 ] = 0.374
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.191
- Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.383
- Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.472
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.306
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.491
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.533
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=100 ] = 0.345
- Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=100 ] = 0.577
- Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=100 ] = 0.681
-```
-
-### Open Images Dataset
-There are 3 RetinaNet models based on ResNet50, ResNet101 and ResNet152 trained on all [500 classes](https://github.com/ZFTurbo/Keras-RetinaNet-for-Open-Images-Challenge-2018/blob/master/a00_utils_and_constants.py#L130) of the Open Images Dataset (thanks to @ZFTurbo).
-
-| Backbone  | Image Size (px) | Small validation mAP | LB (Public) |
-| --------- | --------------- | -------------------- | ----------- |
-| ResNet50  | 768 - 1024      | 0.4594               | 0.4223      |
-| ResNet101 | 768 - 1024      | 0.4986               | 0.4520      |
-| ResNet152 | 600 - 800       | 0.4991               | 0.4651      |
-
-For more information, check [@ZFTurbo's](https://github.com/ZFTurbo/Keras-RetinaNet-for-Open-Images-Challenge-2018) repository.
-
-## CSV datasets
-The `CSVGenerator` provides an easy way to define your own datasets.
-It uses two CSV files: one file containing annotations and one file containing a class name to ID mapping.
-
-### Annotations format
-The CSV file with annotations should contain one annotation per line.
-Images with multiple bounding boxes should use one row per bounding box.
-Note that indexing for pixel values starts at 0.
-The expected format of each line is:
-```
-path/to/image.jpg,x1,y1,x2,y2,class_name
-```
-By default the CSV generator will look for images relative to the directory of the annotations file.
-
-Some images may not contain any labeled objects.
-To add these images to the dataset as negative examples,
-add an annotation where `x1`, `y1`, `x2`, `y2` and `class_name` are all empty:
-```
-path/to/image.jpg,,,,,
-```
-
-A full example:
-```
-/data/imgs/img_001.jpg,837,346,981,456,cow
-/data/imgs/img_002.jpg,215,312,279,391,cat
-/data/imgs/img_002.jpg,22,5,89,84,bird
-/data/imgs/img_003.jpg,,,,,
-```
-
-This defines a dataset with 3 images.
-`img_001.jpg` contains a cow.
-`img_002.jpg` contains a cat and a bird.
-`img_003.jpg` contains no interesting objects/animals.
+Step 1 of the algorithm is to annotate a single document of a given type. See Figure 1 for examples of uploaded and annotated documents.
 
 
-### Class mapping format
-The class name to ID mapping file should contain one mapping per line.
-Each line should use the following format:
-```
-class_name,id
-```
+                                
 
-Indexing for classes starts at 0.
-Do not include a background class as it is implicit.
 
-For example:
-```
-cow,0
-cat,1
-bird,2
-```
 
-## Anchor optimization
 
-In some cases, the default anchor configuration is not suitable for detecting objects in your dataset, for example, if your objects are smaller than the 32x32px (size of the smallest anchors). In this case, it might be suitable to modify the anchor configuration, this can be done automatically by following the steps in the [anchor-optimization](https://github.com/martinzlocha/anchor-optimization/) repository. To use the generated configuration check [here](https://github.com/fizyr/keras-retinanet-test-data/blob/master/config/config.ini) for an example config file and then pass it to `train.py` using the `--config` parameter.
+Figure 1: An example of an unannotated document (left)  and annotated document (right).
 
-## Debugging
-Creating your own dataset does not always work out of the box. There is a [`debug.py`](https://github.com/fizyr/keras-retinanet/blob/master/keras_retinanet/bin/debug.py) tool to help find the most common mistakes.
 
-Particularly helpful is the `--annotations` flag which displays your annotations on the images from your dataset. Annotations are colored in green when there are anchors available and colored in red when there are no anchors available. If an annotation doesn't have anchors available, it means it won't contribute to training. It is normal for a small amount of annotations to show up in red, but if most or all annotations are red there is cause for concern. The most common issues are that the annotations are too small or too oddly shaped (stretched out).
+The document are annotated so that the key and value pairs would be identifiable. For example, (name, Smith), and (age, 58 years) where the key is the question, and value is the corresponding answer. In Figure 1 we show the annotated keys with red boxes, and the annotated values with blue boxes. 
 
-## Results
+Step 2. Using the Python programming library fitz, we can detect the red and blue boxes and extract their corresponding coordinates. We also detect the text within the boxes and extract them into a Python data structure. Thus, keeping the coordinates of the boxes, we can extract the information from the boxes from any document of the same type. As you can see in Figure 2, the data from three analogous documents for three different patients was extracted from the annotated boxes into a single document.
+ 
 
-### MS COCO
+Figure 2: Structured data received from three documents of the same type.
 
-## Status
-Example output images using `keras-retinanet` are shown below.
+However, to retrieve only information from a checked box is yet another challenge. In Figure 3 we can see that for section “Sex” both options – male and female are retrieved. Information from the annotated boxes is retrieved fully irrespective of the checked box in front of only one of the options. That is a problem.
 
-<p align="center">
-  <img src="https://github.com/delftrobotics/keras-retinanet/blob/master/images/coco1.png" alt="Example result of RetinaNet on MS COCO"/>
-  <img src="https://github.com/delftrobotics/keras-retinanet/blob/master/images/coco2.png" alt="Example result of RetinaNet on MS COCO"/>
-  <img src="https://github.com/delftrobotics/keras-retinanet/blob/master/images/coco3.png" alt="Example result of RetinaNet on MS COCO"/>
-</p>
+Step 3. To overcome that problem and detect the box that is checked, we used a RetinaNet deep learning network. We propose a completely new solution to the problem of checkbox detection: instead of detecting the box itself, we trained the network in a manner, that it could identify the bounding box of the text near the checked box (see Figure 3). This facilitates the work, because it reduces the number of steps in the code. It also gives a possibly higher accuracy, since we don’t have to rely on engineering solutions to find out whether the check box is on the left of the text or on the right of it.
 
-### Projects using keras-retinanet
-* [Improving Apple Detection and Counting Using RetinaNet](https://github.com/nikostsagk/Apple-detection). This work aims to investigate the apple detection problem through the deployment of the Keras RetinaNet.
-* [Improving RetinaNet for CT Lesion Detection with Dense Masks from Weak RECIST Labels](https://arxiv.org/abs/1906.02283). Research project for detecting lesions in CT using keras-retinanet.
-* [NudeNet](https://github.com/bedapudi6788/NudeNet). Project that focuses on detecting and censoring of nudity.
-* [Individual tree-crown detection in RGB imagery using self-supervised deep learning neural networks](https://www.biorxiv.org/content/10.1101/532952v1). Research project focused on improving the performance of remotely sensed tree surveys.
-* [ESRI Object Detection Challenge 2019](https://github.com/kunwar31/ESRI_Object_Detection). Winning implementation of the ESRI Object Detection Challenge 2019.
-* [Lunar Rockfall Detector Project](https://ieeexplore.ieee.org/document/8587120). The aim of this project is to map lunar rockfalls on a global scale using the available > 1.6 million satellite images.
-* [NATO Innovation Challenge](https://medium.com/data-from-the-trenches/object-detection-with-deep-learning-on-aerial-imagery-2465078db8a9). The winning team of the NATO Innovation Challenge used keras-retinanet to detect cars in aerial images ([COWC dataset](https://gdo152.llnl.gov/cowc/)).
-* [Microsoft Research for Horovod on Azure](https://blogs.technet.microsoft.com/machinelearning/2018/06/20/how-to-do-distributed-deep-learning-for-object-detection-using-horovod-on-azure/). A research project by Microsoft, using keras-retinanet to distribute training over multiple GPUs using Horovod on Azure.
-* [Anno-Mage](https://virajmavani.github.io/saiat/). A tool that helps you annotate images, using input from the keras-retinanet COCO model as suggestions.
-* [Telenav.AI](https://github.com/Telenav/Telenav.AI/tree/master/retinanet). For the detection of traffic signs using keras-retinanet.
-* [Towards Deep Placental Histology Phenotyping](https://github.com/Nellaker-group/TowardsDeepPhenotyping). This research project uses keras-retinanet for analysing the placenta at a cellular level.
-* [4k video example](https://www.youtube.com/watch?v=KYueHEMGRos). This demo shows the use of keras-retinanet on a 4k input video.
-* [boring-detector](https://github.com/lexfridman/boring-detector). I suppose not all projects need to solve life's biggest questions. This project detects the "The Boring Company" hats in videos.
-* [comet.ml](https://towardsdatascience.com/how-i-monitor-and-track-my-machine-learning-experiments-from-anywhere-described-in-13-tweets-ec3d0870af99). Using keras-retinanet in combination with [comet.ml](https://comet.ml) to interactively inspect and compare experiments.
-* [Weights and Biases](https://app.wandb.ai/syllogismos/keras-retinanet/reports?view=carey%2FObject%20Detection%20with%20RetinaNet). Trained keras-retinanet on coco dataset from beginning on resnet50 and resnet101 backends.
-* [Google Open Images Challenge 2018 15th place solution](https://github.com/ZFTurbo/Keras-RetinaNet-for-Open-Images-Challenge-2018). Pretrained weights for keras-retinanet based on ResNet50, ResNet101 and ResNet152 trained on open images dataset. 
-* [poke.AI](https://github.com/Raghav-B/poke.AI). An experimental AI that attempts to master the 3rd Generation Pokemon games. Using keras-retinanet for in-game mapping and localization.
-* [retinanetjs](https://github.com/faustomorales/retinanetjs) A wrapper to run RetinaNet inference in the browser / Node.js. You can also take a look at the [example app](https://faustomorales.github.io/retinanetjs-example-app/).
+ 	 
+Figure 3: Detection of the text near the checked box using RetinaNet deep learning network.
 
-If you have a project based on `keras-retinanet` and would like to have it published here, shoot me a message on Slack.
+We have also considered cases where there is an additional information not only near the checkboxes, or the words selected are circled instead. For instance, in Figure 4, “56 years” is the output of our program. 
+ 
+Figure 4: Detection of circled words and additional words.
+After coordinate detection of the bounding box of the text, we proceed to the Step 4. The image is cropped and is passed to pytesseract Python library, which uses tesseract OCR. Tesseract is an  optical character recognition engine released under the Apache License and its development has been sponsored by Google since 2006. The OCR transferred text is then inserted to the corresponding space in the data structure shown in Figure 3. 
 
-### Notes
-* This repository requires Keras 2.3.0 or higher.
-* This repository is [tested](https://github.com/fizyr/keras-retinanet/blob/master/.travis.yml) using OpenCV 3.4.
-* This repository is [tested](https://github.com/fizyr/keras-retinanet/blob/master/.travis.yml) using Python 2.7 and 3.6.
+Data Preprocessing for RetinaNet Neural Network
+The data for the network was collected from various documents containing different type of checkboxes (Figure 3 and Figure 4). Checkmarks inside the boxes also vary, being X-shaped or V-shaped. Some noise, like dots of different colors, were added to the images to avoid overfitting. Negative examples included both – images with all unchecked boxes and images without any checkboxes on them.
 
-Contributions to this project are welcome.
+For positive data, we wrote code using pytesseract python library to give as an output an hOCR file. hOCR is an open standard of data representation for formatted text obtained from optical character recognition, which among many other things contains the bounding box coordinates of the words [14]. For each part of the image, the bounding box coordinates of the words were found and were given as labels of the data. Three different type of classes were created: one for words near the checkboxes for cases represented in Figure 3, and two additional classes for cases presented in Figure 4: one for the text input without checkboxes, and the other for circled words. We named the classes “yes,” “ok,” and “ellipse.” You can see an example of preprocessed data in Figure 5.
+Checkbox image	Xmin	Ymin	Xmax	Ymax	Class name
+ 	505	18	670	55	tick
+					
+ 	80	25	135	65	notation
+	660	10	77	65	circle
+					
+ 	330	15	480	50	tick
+					
+ 	1340	15	1580	50	tick
+					
+ 	1385	5	1620	95	tick
+					
+ 	80	25	135	65	notation
+	660	10	770	65	circle
+					
+ 	700	10	890	95	tick
+					
+ 	85	25	140	65	notation
+	660	10	770	65	circle
+					
+ 	70	25	125	65	notation
+	660	10	770	65	circle
+					
+ 	840	25	1190	70	tick
+					
+ 	1100	20	1225	55	tick
+Figure 5: Preprocessed data for RetinaNet deep learning neural network.
 
-### Discussions
-Feel free to join the `#keras-retinanet` [Keras Slack](https://keras-slack-autojoin.herokuapp.com/) channel for discussions and questions.
+Each of the data lines in Figure 5 contains the x,y coordinates of upper left and lower right corners of the bounding boxes of the label data (colums 2 through 5), and their respective classes (column 6). The data was checked for avoiding possible mistakes and making it work for RetinaNet  through keras-retinanet/keras_retinanet/bin/debug.py script designed for debugging images by RetinaNet model developers. To make text detectable by the neural network, anchor parameters of anchor boxes were set to ratios = np.array([0.01,0.03,0.09,0.27, 1], keras.backend.floatx()), scales = np.array([20,  2(1.0 / 3.0),  2(2.0 / 3.0),  3.5] in keras-retinanet/keras_retinanet/utils/anchors.py python script. All the coordinates were verified through debug.py
 
-## FAQ
-* **I get the warning `UserWarning: No training configuration found in save file: the model was not compiled. Compile it manually.`, should I be worried?** This warning can safely be ignored during inference.
-* **I get the error `ValueError: not enough values to unpack (expected 3, got 2)` during inference, what to do?**. This is because you are using a train model to do inference. See https://github.com/fizyr/keras-retinanet#converting-a-training-model-to-inference-model for more information.
-* **How do I do transfer learning?** The easiest solution is to use the `--weights` argument when training. Keras will load models, even if the number of classes don't match (it will simply skip loading of weights when there is a mismatch). Run for example `retinanet-train --weights snapshots/some_coco_model.h5 pascal /path/to/pascal` to transfer weights from a COCO model to a PascalVOC training session. If your dataset is small, you can also use the `--freeze-backbone` argument to freeze the backbone layers.
-* **How do I change the number / shape of the anchors?** The train tool allows to pass a configuration file, where the anchor parameters can be adjusted. Check [here](https://github.com/fizyr/keras-retinanet-test-data/blob/master/config/config.ini) for an example config file.
-* **I get a loss of `0`, what is going on?** This mostly happens when none of the anchors "fit" on your objects, because they are most likely too small or elongated. You can verify this using the [debug](https://github.com/fizyr/keras-retinanet#debugging) tool.
-* **I have an older model, can I use it after an update of keras-retinanet?** This depends on what has changed. If it is a change that doesn't affect the weights then you can "update" models by creating a new retinanet model, loading your old weights using `model.load_weights(weights_path, by_name=True)` and saving this model. If the change has been too significant, you should retrain your model (you can try to load in the weights from your old model when starting training, this might be a better starting position than ImageNet).
-* **I get the error `ModuleNotFoundError: No module named 'keras_retinanet.utils.compute_overlap'`, how do I fix this?** Most likely you are running the code from the cloned repository. This is fine, but you need to compile some extensions for this to work (`python setup.py build_ext --inplace`).
-* **How do I train on my own dataset?** The steps to train on your dataset are roughly as follows:
-* 1. Prepare your dataset in the CSV format (a training and validation split is advised).
-* 2. Check that your dataset is correct using `retinanet-debug`.
-* 3. Train retinanet, preferably using the pretrained COCO weights (this gives a **far** better starting point, making training much quicker and accurate). You can optionally perform evaluation of your validation set during training to keep track of how well it performs (advised).
-* 4. Convert your training model to an inference model.
-* 5. Evaluate your inference model on your test or validation set.
-* 6. Profit!
+RetinaNet Training
+One of peculiarities of RetinaNet model is the usage of   Focal Loss (FL(pt) = −(1 – pt) γ *log(pt)) function during the classification [15]. This conceptual interpretation of this function is that it increases the overall contribution of positive examples in the training process. Data imbalances of having either too many positively tagged data or too many negatively tagged data can result in machine learning models trying to generalize too much, which is why they have to be ‘balanced’ first. The Focal Loss is designed to address the one-stage object detection scenario in which there is an extreme imbalance between foreground and background classes during training (e.g., 1:1000). 
+
+Training data contained 1205 samples. The parameters of training are as follows: batch_size=1, steps=1249,  epochs=50. We used pretrained COCO weights for RetinaNet.
+
+We used random-transform and no-resize parameters while training. Random transform usage avoids the need to specify the min_rotation, max_rotation, min_translation, max_translation, min_shear, max_shear, min_scaling, max_scaling, flip_x_chance,  flip_y_chance transformation parameters on initial pictures. No-resize is designed to feed the network with pictures of original sizes, and not set one-size-for-all to them
+
+Evaluation metrics
+The mean average precision (mAP) is a main evaluation metric for RetinaNet [15]. The tables of Precision and Recall are calculated for mAP estimation.  We assumed that score_threshold=0.4 and iou_threshold=0.5. 
+Rank	Precision	Recall	True_positives
+1.		1.00	0.00	1.0
+2.		1.00	0.01	2.0
+3.		1.00	0.01	3.0
+…	…	…	…
+150.		1.00	0.56	150.0
+151.		1.00	0.57	151.0
+152.		1.00	0.57	152.0
+…	…	…	…
+282.		0.90	0.95	254.0
+283.		0.90	0.95	254.0
+284.		0.89	0.95	254.0
+For class “tick"   average_precision 0.9483, num_annotations 267.0
+Figure 6: Evaluation metrics for class “tick”
+
+Rank	Precision	Recall	true_positives
+1.		1.00	0.01	1.0
+2.		1.00	0.02	2.0
+3.		1.00	0.03	3.0
+…	…	…	…
+50.		1.00	0.51	50.0
+51.		1.00	0.52	51.0
+52.		1.00	0.53	52.0
+…	…	…	…
+96.		0.98	0.96	94.0
+97.		0.98	0.97	95.0
+98.		0.98	0.98	96.0
+For class “notation"   average_precision 0.9753, num_annotations 98.0
+
+Figure 7: evaluation metrics for class “notation”
+
+Rank	Precision	Recall	true_positives
+1.		1.00	0.02	1.0
+2.		1.00	0.04	2.0
+3.		1.00	0.06	3.0
+…	…	…	…
+22.		1.00	0.47	22.0
+23.		1.00	0.49	23.0
+24.		1.00	0.51	24.0
+…	…	…	…
+45.		1.00	0.96	45.0
+46.		1.00	0.98	46.0
+47.		1.00	1.00	47.0
+For class “circle"   average precision  1, num_annotations 98.0, num_annotations 47.0
+
+Figure 8: Evaluation metrics for class “circle”
+Based on the tables we found mAP=(0.9483+ 0.9753+ 1.0000)/3=0.9745 for test set and analogically for train set we have mAP=0.9816 which are very good.
+
+Conclusion
+Automating document processing in life sciences for processing clinical trials data is quite challenging. The semi structured nature of PDF documents make it difficult to have a rule-based approach to extract name value pairs, that can then in turn be fed into a structured database for further processing.  Machine learning and specifically deep learning approaches hold promise to provide better results.
+
+Checkbook box detection is among the most challenging because the text corresponding to the check box may be on the right, or on the left, or any other location close to the check box itself. In addition, the variation of how the box is checked is high. There is no way to programmatically identify the box’s label and its value.
+
+We used a modified RetinaNet model for detecting/predicting checkboxes and their corresponding values. RetinaNet outputs the probabilities of checkboxes (i.e. the probability of existence of a checkbox), and we consider boxes as checked if the probabilities are higher than 0.5. It has been shown that our model detects checkboxes with high accuracy, approximately 90% on a given test data.
+
+While this experiment was done on domain specific PDF documents, the same concept can be applied to documents in any other domain as long as they are trained using the appropriate deep neural network. Often in business, there is a lot of unstructured and semi structured documents (such as in Microsoft Word), and if we can systematically and automatically extract and tag that information, it will be valuable for the business leading to better and faster decision making, reduced cost, and reduced errors.
+
+
+
+
+
+
+
+
+
+
+
+
+
+References
+1.	Navneet Dalal and Bill Triggs Histograms of oriented gradients for human detection //2005 IEEE Computer Society Conference on Computer Vision and Pattern Recognition (CVPR'05).
+
+2.	Pierre Sermanet, David Eigen, Xiang Zhang, Michael Mathieu, Rob Fergus, Yann LeCun OverFeat: Integrated Recognition, Localization and Detection using Convolutional Networks // arXiv:1312.6229 [cs.CV] 21 Dec2013 
+
+3.	Ross Girshick Jeff Donahue Trevor Darrell Jitendra Malik Rich feature hierarchies for accurate object detection and semantic segmentation // arXiv:1311.2524v5 [cs.CV] 22 Oct 2014
+
+4.	Ross Girshick Fast R-CNN // arXiv:1504.08083v2 [cs.CV] 27 Sep 2015
+
+5.	Shaoqing Ren, Kaiming He, Ross Girshick, and Jian Sun Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks // arXiv:1506.01497v3 [cs.CV] 6 Jan 2016
+
+6.	Joseph Redmon, Santosh Divvala, Ross Girshick , Ali Farhadi You Only Look Once: Unified, Real-Time Object Detection // arXiv:1506.02640v5 [cs.CV] 9 May 2016
+
+7.	Tsung-Yi Lin, Priya Goyal, Ross Girshick, Kaiming He, Piotr Dollar, Focal Loss for Dense Object Detection // arXiv:1708.02002v2 [cs.CV] 7 Feb 2018
+
+8.	Yixing Li, Fengbo Ren Light-Weight RetinaNet for Object Detection // arXiv:1905.10011v1 [cs.CV] 24 May 2019
+
+9.	Hei Law • Jia Deng CornerNet: Detecting Objects as Paired Keypoints // arXiv:1808.01244v2 [cs.CV] 18 Mar 2019
+
+10.	Istle, J. M. (2004). Optical character recognition for checkbox detection [Master's thesis]. https://digitalscholarship.unlv.edu/cgi/viewcontent.cgi?article=2723&context=rtds 
+
+11.	IBM Knowledge Center https://www.ibm.com/support/knowledgecenter/en/SSZRWV_9.0.0/com.ibm.dc.develop.doc/dcadg363.htm 
+
+12.	Zhang, S., Yuan, S., & Niu, L. (2014). Automatic Recognition Method for Checkbox in Data Form Image. 2014 Sixth International Conference on Measuring Technology and Mechatronics Automation. https://ieeexplore.ieee.org/abstract/document/6802658/authors#authors
+13.	 Tesseract (OCR), Wikipedia, https://en.wikipedia.org/wiki/Tesseract_(software)
+ 
+14.	 hOCR, Wikipedia, https://en.wikipedia.org/wiki/HOCR 
+
+15.	Lin, T., Goyal, P., Girshick, R., He, K., & Dollar, P. (2017). Focal loss for dense object detection. 2017 IEEE International Conference on Computer Vision (ICCV). https://doi.org/10.1109/iccv.2017.324
+
+16.	Mean average precision. (n.d.). SpringerReference. https://doi.org/10.1007/springerreference_65277
+
